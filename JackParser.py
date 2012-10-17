@@ -9,7 +9,15 @@ class JackParser:
     def pushToken(self):
         self.tokenizer.pushToken()
 
+    def canPop(self):
+        return self.tokenizer.canPop()
+
+    def parse(self):
+        while (self.canPop()):
+            self.parseClass()
+
     def parseClass(self):
+
 
     def parseSubroutine(self):
 
