@@ -15,8 +15,11 @@ class Parser:
     {} function_locals
     ^one of these would have type, index (number)
 
-class Tokenizer:
+"""
+keyword: ['class', 'constructor', 'function', 'method', 'field', 'static', 'var', 'int', 'char', 'boolean', 'void', 'true', 'false', 'null', 'this' , 'let', 'do', 'if', 'else', 'while', 'return']
+symbol: ['{' , '}' , '(' , ')' , '[' , ']' , '. ' , ',' , '; ' , '+' , '-' , '*' , '/' , '&' , ',' , '<' , '>' , '=' ,  '~' ]
 
+class Tokenizer:
     
     def __init__(self, file):
         self.file = file
@@ -34,5 +37,4 @@ class Tokenizer:
         self.file = self.tokens[0][1] + self.file
         self.tokens = self.tokens[1:]
 
-"""
 
