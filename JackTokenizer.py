@@ -33,12 +33,17 @@ class Tokenizer:
 		return self.file[:len(strang)] == strang
 
 	def popToken(self):
-		self.tokens = [(type,value)] + self.tokens
-		return (type, value)
+		for key in JackConstants.keyword:
+			if self._matchesToken(key):
+				self.tokens = [("keyword",key)] + self.tokens
+				return ("keyword", key)
 
 	def pushToken(self):
 		self.file = self.tokens[0][1] + self.file
 		self.tokens = self.tokens[1:]
+	
+	def canPop(self):
+		return self.file == ""
 
 if __name__ == "__main__":
 	tokenizer = Tokenizer("class Yo{}")
