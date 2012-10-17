@@ -16,10 +16,13 @@ class Parser:
 class Tokenizer:
 
     
-    
     def __init__(self, file):
         self.file = file
         self.tokens = []
+		_preprocess()
+	
+	def _preprocess(self):
+		pass
 
     def popToken(self):
         self.tokens = [(type,value)] + self.tokens
