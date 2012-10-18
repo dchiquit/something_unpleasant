@@ -16,7 +16,7 @@ class JackParser:
         self.arguments = {} #function => name => type, index
 
     def _popToken(self):
-        self.tokenizer.popToken()
+        return self.tokenizer.popToken()
 
     def _pushToken(self):
         self.tokenizer.pushToken()
@@ -35,7 +35,7 @@ class JackParser:
             else:
                 nextToken = self._popToken()
                 captures += [nextToken]
-                if nextToken !=  parseObj:
+                if nextToken != parseObj:
                     raise ('Syntax error')
         return tuple(captures)
 
