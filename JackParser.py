@@ -40,10 +40,10 @@ class JackParser:
         return tuple(captures)
 
     def parseMany(self, startToken, item):
-        if !(self._isFunction(item)):
+        if ~(self._isFunction(item)):
             raise ('Function not passed to parseMany')
         nextToken = self._popToken()
-        if !(isinstance(startToken, list)):
+        if ~(isinstance(startToken, list)):
             startToken = [startToken]
         while (nextToken in startToken):
             self._pushToken()
