@@ -53,12 +53,12 @@ class JackParser:
                 nextToken = self._popToken()
                 captures += [nextToken]
                 if nextToken != parseObj:
-                    raise ('Syntax error')
+                    raise JackParserError('Syntax error')
         return tuple(captures)
 
     def parseMany(self, startToken, item):
         if not(self._isFunction(item)):
-            raise Exception('Function not passed to parseMany')
+            raise JackParserError('Function not passed to parseMany')
         nextToken = self._popToken()
         if not(isinstance(startToken, list)):
             startToken = [startToken]
@@ -141,7 +141,7 @@ class JackParser:
             self.addresses[self.functionName][name] = "local %s" % (self.localVars[self.functionName][name]['index'])
             self.localVarCounts[self.functionName] += 1
         else:
-            raise('Invalid scope')
+            raise JackParserError('Invalid scope')
         return name
         
     def parseVariable(self):
