@@ -48,8 +48,13 @@ class Tokenizer:
         self.file = self.file[len(token):]
         self.tokens = [(type, token)] + self.tokens
         return (type, token)
+        
+    def _popNull(self):
+        self.tokens = [('eof', None)] + self.tokens
+        return ('eof', None)
 
     def popToken(self):
+        if not self.canPop(): return self._popNull()
         self.file = self.file.strip()
         token = self._read()
         for key in JackConstants.keyword:
@@ -57,7 +62,7 @@ class Tokenizer:
                 return self._pop("keyword", key)
         for symbol in JackConstants.symbol:
             if self._matchesToken(token, symbol):
-                return self._pop("keyword", symbol)
+                return self._pop("symbol", symbol)
         if self.file[0] == '"':
             for i in range(1,len(self.file)):
                 if self.file[i] == '"':
@@ -85,7 +90,7 @@ class Tokenizer:
         raise JackErrors.JackParserError("No token found")
 		
     def pushToken(self):
-        self.file = self.tokens[0][1] + self.file
+        if self.tokens[0][1] != None: self.file = self.tokens[0][1] + self.file
         self.tokens = self.tokens[1:]
 			
     def canPop(self):
@@ -100,7 +105,7 @@ if __name__ == "__main__":
         }
 """)
     while tokenizer.canPop():
-        print tokenizer.popToken()
+        print(tokenizer.popToken())
 
 
 
