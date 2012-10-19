@@ -16,7 +16,7 @@ class JackParser:
         self.tokenizer = tokenizer
         self.className = ''
         self.globalClassInfo = {}
-        self.addresses = {} #{'$global' => {}, 'function' => {'exampleVar' => 'static 0'}}
+        self.addresses = {'$global': {}} #{'$global' => {}, 'function' => {'exampleVar' => 'static 0'}}
         ###private
         self.staticCount = 0
         self.statics = {}
@@ -44,6 +44,8 @@ class JackParser:
 
     def parse(self, items):
         captures = []
+        if not(isinstance(items, list)):
+            items = [items]
         for parseObj in items:
             if self._isFunction(parseObj):
                 captures += [parseObj()]
@@ -69,6 +71,8 @@ class JackParser:
     def parseAll(self):
         print('Parsing all!')
         children = list(self.parseMany(('keyword', 'class'), self.parseClass))
+        print('Global info:')
+        print(self.globalClassInfo)
         return (JackExpressionTree({'type': 'root'}, None, children),
                 self.globalClassInfo)
 
@@ -80,8 +84,9 @@ class JackParser:
         self.className = className
         classBody, w = self.parse([self.parseClassBody,
             ('symbol', '}')])
-        self.globalClassInfo[self.className] = { 'addresses': self.addresses.copy(), 'functionLocalCounts': self.localVarCounts.copy() }
-        self.addresses = {} #{'$global' => {}, 'function' => {'exampleVar' => 'static 0'}}
+        self.globalClassInfo[self.className] = { 'addresses': self.addresses.copy(), 
+            'functionLocalCounts': self.localVarCounts.copy() }
+        self.addresses = {'$global': {}} #{'$global' => {}, 'function' => {'exampleVar' => 'static 0'}}
         self.staticCount = 0
         self.statics = {}
         self.instanceVarCount = 0
@@ -96,7 +101,7 @@ class JackParser:
         print('Parsing class body!')
         declarations = list(self.parseMany([('keyword', 'static'),
             ('keyword', 'field')],
-            self.parseClassVariableDeclaration))
+            self.parseVariableDeclaration))
         subroutines = list(self.parseMany([('keyword', 'function'),
             ('keyword', 'constructor'),
             ('keyword', 'method')],
@@ -107,25 +112,47 @@ class JackParser:
         w, idt = self._popToken()
         return idt
 
-    def parseClassVariableDeclaration(self):
-        print('Parsing class instance var dec')
-        scope, varType, name, w = self.parse([self.parseTokenValue,
-            self.parseTokenValue,
-            self.parseTokenValue,
-            ('keyword', ';')])
-        if scope == 'static':
+    def parseVariableDeclaration(self):
+        print('Parsing var dec')
+        self.scope, self.varType = self.parse([self.parseTokenValue, self.parseTokenValue])
+        names, w = self.parse([self.parseVariableList, ('symbol', ';')])
+        print('Exiting var dec')
+        print(names)
+        return names
+        
+    def parseLoneVariable(self):
+        print('Parsing lone variable')
+        name = self.parseTokenValue()
+        if self.scope == 'static':
             self.statics[name] = {}
-            self.statics[name]['type'] = varType
+            self.statics[name]['type'] = self.varType
             self.statics[name]['index'] = self.staticCount
             self.addresses['$global'][name] = "static %s" % (self.statics[name]['index'])
             self.staticCount += 1
-        elif scope == 'field':
+        elif self.scope == 'field':
             self.instanceVars[name] = {}
-            self.instanceVars[name]['type'] = varType
+            self.instanceVars[name]['type'] = self.varType
             self.instanceVars[name]['index'] = self.instanceVarCount
-            self.addresses['$global'][name] = "this %s" % (self.instaceVars[name]['index'])
+            self.addresses['$global'][name] = "this %s" % (self.instanceVars[name]['index'])
             self.instanceVarCount += 1
+        elif self.scope == 'var':#fill this in
+            self.localVars[self.functionName][name] = {}
+            self.localVars[self.functionName][name]['type'] = self.varType
+            self.localVars[self.functionName][name]['index'] = self.localVarCounts[self.functionName]
+            self.addresses[self.functionName][name] = "local %s" % (self.localVars[self.functionName][name]['index'])
+            self.localVarCounts[self.functionName] += 1
+        else:
+            raise('Invalid scope')
         return name
+        
+    def parseVariable(self):
+        print('Parsing variable')
+        self.parseTokenValue()
+        return self.parseLoneVariable()
+        
+    def parseVariableList(self):
+        print('Parsing variable list')
+        return [self.parseLoneVariable()] + list(self.parseMany(('symbol', ','), self.parseVariable))
 
     def parseSubroutine(self):
         print('Parsing subroutine')
@@ -133,18 +160,28 @@ class JackParser:
             self.parseTokenValue,
             self.parseTokenValue])
         self.functionName = name
-        self.functionLocalCounts[name] = 0
-        w, w, w, body = self.parse([('symbol', '('),
+        self.addresses[name] = {}
+        self.localVars[name] = {}
+        self.localVars[name] = {}
+        self.argumentCounts[name] = 0
+        self.localVarCounts[name] = 0
+        w, parameterList, w, body = self.parse([('symbol', '('),
             self.parseParameterList,
             ('symbol', ')'),
             self.parseSubroutineBody])
+        print('Exiting subroutine header')
+        print(parameterList)
         return JackExpressionTree({'name': "%s.%s" % (self.className, self.functionName),
-            'returnType': returnType},
+            'returnType': returnType,
+            'functionType': methodType},
             None, body.children)
 
     def parseSubroutineBody(self):
         print('Parsing subroutine body')
-        w, statementsTree = self.parse([self.parseVariableDeclarations, self.parseStatements])
+        w, w, statementsTree, w = self.parse([('symbol', '{'),
+            self.parseVariableDeclarations, 
+            self.parseStatements,
+            ('symbol', '}')])
         return JackExpressionTree({}, None, statementsTree.children)
 
     def parseParameterList(self):
@@ -156,26 +193,23 @@ class JackParser:
 
     def parseLoneParameter(self):
         print('Parsing lone parameter')
-        w, argType = self.parseTokenValue()
-        w, argId = self.parseTokenValue()
-        self.localVars[self.functionName][argId] = {}
-        self.localVars[self.functionName][argId]['type'] = argType
-        self.localVars[self.functionName][argId]['index'] = self.localVarCounts[self.functionName]
-        self.addresses[self.functionName][argId] = "argument %s" % (self.localVarCounts[self.functionName])
-        self.localVarCounts[self.functionName] += 1
+        argType = self.parseTokenValue()
+        argId = self.parseTokenValue()
+        self.arguments[self.functionName][argId] = {}
+        self.arguments[self.functionName][argId]['type'] = argType
+        self.arguments[self.functionName][argId]['index'] = self.argumentCounts[self.functionName]
+        self.addresses[self.functionName][argId] = "argument %s" % (self.argumentCounts[self.functionName])
+        self.argumentCounts[self.functionName] += 1
         return argId
 
     def parseParameter(self):
         print('Parsing parameter')
-        w, w = self.parseTokenValue()
+        self.parseTokenValue()
         return self.parseLoneParameter()
 
     def parseVariableDeclarations(self):
         print('Parsing vardec')
         return list(self.parseMany(('keyword', 'var'), self.parseVariableDeclaration))
-
-    def parseVariableDeclaration(self):
-        pass
         
     def parseStatements(self):
         print('Parsing statements')
@@ -217,6 +251,13 @@ class JackParser:
 if __name__ == "__main__":
     tokenizer = Tokenizer("""
     class Wassup {
+        field int test, test3, test4, test5;
+        field int test2;
+        static int test421;
+        
+        method int testanotherthing(int a, String b) {
+            var int fssss;
+        }
     }""")
     jp = JackParser(tokenizer)
     print(jp.parseAll()[0].strang())
