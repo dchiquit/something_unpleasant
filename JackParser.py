@@ -1,3 +1,7 @@
+from JackConstants import *
+from JackTokenizer import *
+from JackExpressionTree import *
+
 class JackParser:
 
     def __init__(self, tokenizer):
@@ -40,10 +44,10 @@ class JackParser:
         return tuple(captures)
 
     def parseMany(self, startToken, item):
-        if ~(self._isFunction(item)):
-            raise ('Function not passed to parseMany')
+        if not(self._isFunction(item)):
+            raise Exception('Function not passed to parseMany')
         nextToken = self._popToken()
-        if ~(isinstance(startToken, list)):
+        if not(isinstance(startToken, list)):
             startToken = [startToken]
         while (nextToken in startToken):
             self._pushToken()
@@ -151,7 +155,8 @@ class JackParser:
         return list(self.parseMany(('keyword', 'var'), self.parseVariableDeclaration))
 
     def parseVariableDeclaration(self):
-
+		pass
+		
     def parseStatements(self):
         children = list(self.parseMany([('keyword', 'do'),
             ('keyword', 'let'),
@@ -162,21 +167,35 @@ class JackParser:
         return JackExpressionTree(None, None, children)
 
     def parseStatement(self):
+		pass
 
     def parseDoStatement(self):
+		pass
 
     def parseLetStatement(self):
+		pass
 
     def parseWhileStatement(self):
+		pass
 
     def parseReturnStatement(self):
+		pass
 
     def parseIfStatement(self):
+		pass
 
     def parseExpression(self):
+		pass
 
     def parseExpressionList(self):
+		pass
 
     def parseTerm(self):
+		pass
 
-
+if __name__ == "__main__":
+	tokenizer = Tokenizer("""
+	class Wassup {
+	}""")
+	jp = JackParser(tokenizer)
+	print jp.parseAll()
