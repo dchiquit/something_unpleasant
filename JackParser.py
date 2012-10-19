@@ -2,12 +2,20 @@ from JackConstants import *
 from JackTokenizer import *
 from JackExpressionTree import *
 
+"""
+
+Tokenizer needs an EOF:
+("EOF",None)
+
+
+"""
+
 class JackParser:
 
     def __init__(self, tokenizer):
         self.tokenizer = tokenizer
         self.className = ''
-        self.globalClassAddresses = {}
+        self.globalClassInfo = {}
         self.addresses = {} #{'$global' => {}, 'function' => {'exampleVar' => 'static 0'}}
         ###private
         self.staticCount = 0
@@ -58,8 +66,7 @@ class JackParser:
     def parseAll(self):
         children = list(self.parseMany(('keyword', 'class'), self.parseClass))
         return (JackExpressionTree({'type': 'root'}, None, children),
-                self.addresses,
-                self.functionLocalCounts)
+                self.globalClassInfo)
 
     def parseClass(self):
         w, className, w = self.parse([('keyword', 'class'),
@@ -68,7 +75,7 @@ class JackParser:
         self.className = className
         classBody, w = self.parse([self.parseClassBody,
             ('symbol', '}')])
-        self.globalClassAddresses[self.className] = self.addresses[:] #copy
+        self.globalClassInfo[self.className] = {'addresses': self.addresses[:], 'functionLocalCounts': self.localVarCounts[:]}
         self.addresses = {} #{'$global' => {}, 'function' => {'exampleVar' => 'static 0'}}
         self.staticCount = 0
         self.statics = {}
@@ -198,4 +205,4 @@ if __name__ == "__main__":
 	class Wassup {
 	}""")
 	jp = JackParser(tokenizer)
-	print jp.parseAll()
+	print jp.parseAll()[0].strang()
