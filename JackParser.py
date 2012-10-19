@@ -84,8 +84,7 @@ class JackParser:
         self.className = className
         classBody, w = self.parse([self.parseClassBody,
             ('symbol', '}')])
-        self.globalClassInfo[self.className] = { 'addresses': self.addresses.copy(), 
-            'functionLocalCounts': self.localVarCounts.copy() }
+        self.globalClassInfo[self.className] = { 'addresses': self.addresses.copy() }
         self.addresses = {'$global': {}} #{'$global' => {}, 'function' => {'exampleVar' => 'static 0'}}
         self.staticCount = 0
         self.statics = {}
@@ -162,7 +161,7 @@ class JackParser:
         self.functionName = name
         self.addresses[name] = {}
         self.localVars[name] = {}
-        self.localVars[name] = {}
+        self.arguments[name] = {}
         self.argumentCounts[name] = 0
         self.localVarCounts[name] = 0
         w, parameterList, w, body = self.parse([('symbol', '('),
@@ -172,6 +171,7 @@ class JackParser:
         print('Exiting subroutine header')
         print(parameterList)
         return JackExpressionTree({'name': "%s.%s" % (self.className, self.functionName),
+            'localVarCount': self.localVarCounts[name],
             'returnType': returnType,
             'functionType': methodType},
             None, body.children)
