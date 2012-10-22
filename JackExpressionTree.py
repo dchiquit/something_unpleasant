@@ -15,10 +15,10 @@ class JackExpressionTree:
         for c in children:
             c.parent = self
         
-    def strang(self, tabs=""):
-        ret = tabs+str(self.properties)
+    def __str__(self, tabs=""):
+        ret = tabs+str(self.properties)+"\n"
         for c in self.children:
-            ret += c.strang(tabs+"\t")
+            ret += str(c)+tabs+"\t"
         return ret
             
     def addChild(self, child):
