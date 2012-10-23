@@ -1,6 +1,7 @@
 from JackConstants import *
 from JackTokenizer import *
 from JackExpressionTree import *
+from JackErrors import *
 
 """
 
@@ -73,7 +74,7 @@ class JackParser:
         children = list(self.parseMany(('keyword', 'class'), self.parseClass))
         print('Global info:')
         print(self.globalClassInfo)
-        return (JackExpressionTree({'type': 'root'}, None, children),
+        return (Node({'type': 'root'}, None, children),
                 self.globalClassInfo)
 
     def parseClass(self):
@@ -94,7 +95,7 @@ class JackParser:
         self.localVars = {} #function => name => type, index
         self.argumentCounts = {} #function => argumentCount
         self.arguments = {} #function => name => type, index
-        return JackExpressionTree({'type': 'class', 'name': self.className}, None, classBody.children)
+        return Node({'type': 'class', 'name': self.className}, None, classBody.children)
 
     def parseClassBody(self):
         print('Parsing class body!')
@@ -105,7 +106,7 @@ class JackParser:
             ('keyword', 'constructor'),
             ('keyword', 'method')],
             self.parseSubroutine))
-        return JackExpressionTree({}, None, subroutines)
+        return Node({}, None, subroutines)
 
     def parseTokenValue(self):
         w, idt = self._popToken()
@@ -170,7 +171,8 @@ class JackParser:
             self.parseSubroutineBody])
         print('Exiting subroutine header')
         print(parameterList)
-        return JackExpressionTree({'name': "%s.%s" % (self.className, self.functionName),
+        return Node({'type': 'subroutine', 
+            'name': "%s.%s" % (self.className, self.functionName),
             'localVarCount': self.localVarCounts[name],
             'returnType': returnType,
             'functionType': methodType},
@@ -182,7 +184,7 @@ class JackParser:
             self.parseVariableDeclarations, 
             self.parseStatements,
             ('symbol', '}')])
-        return JackExpressionTree({}, None, statementsTree.children)
+        return Node({}, None, statementsTree.children)
 
     def parseParameterList(self):
         print('Parsing parameter list')
@@ -219,17 +221,30 @@ class JackParser:
             ('keyword', 'return'),
             ('keyword', 'if')],
             self.parseStatement))
-        return JackExpressionTree(None, None, children)
+        return Node(None, None, children)
 
     def parseStatement(self):
-        pass
-
+        nextToken = self._popToken()
+        if nextToken == ('keyword', 'let'):
+            return self.parseLetStatement()
+        if nextToken == ('keyword', 'aofioeafimofmoim'):
+            pass
+        
     def parseDoStatement(self):
         pass
 
     def parseLetStatement(self):
-        pass
-
+        leftExpression, w, rightExpression, ww = self.parse([self.parseLHS, ('symbol', '='), self.parseRHS, ('symbol', ';')])
+        print "afaffdsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa    \t\t",leftExpression, w, rightExpression
+        return Node(properties={'type': 'if', 'array': leftExpression.properties['value'] == '['}, 
+            None, [leftExpression, rightExpression])
+        
+    def parseLHS(self):
+        return self._popToken()
+    
+    def parseRHS(self):
+        return self._popToken()
+        
     def parseWhileStatement(self):
         pass
 
@@ -256,8 +271,9 @@ if __name__ == "__main__":
         static int test421;
         
         method int testanotherthing(int a, String b) {
-            var int fssss;
+            var int fs;
+            let fs = 123;
         }
     }""")
     jp = JackParser(tokenizer)
-    print(jp.parseAll()[0].strang())
+    print(jp.parseAll()[0])
