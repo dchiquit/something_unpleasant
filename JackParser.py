@@ -257,12 +257,12 @@ class JackParser:
                 [Node({'type': 'this'}, None, [])] + argList)
         elif next == '.':
             ident2, w, argList, w = self.parse([self.parseTokenValue, ('symbol', '('), self.parseArgumentList, ('symbol', ')')])
-            if ident1 in resolve[self.functionName].keys():
-                varType = resolve[self.functionName][ident1]
+            if ident1 in self.resolve[self.functionName].keys():
+                varType = self.resolve[self.functionName][ident1]
                 return Node({'type': 'functionCall', 'value': "%s.%s" % (varType, ident2)}, None,
                     [Node({'type': 'identifier', 'value': ident1}, None, [])] + argList)
-            elif ident1 in resolve['$global'].keys():
-                varType = resolve['$global'][ident1]
+            elif ident1 in self.resolve['$global'].keys():
+                varType = self.resolve['$global'][ident1]
                 return Node({'type': 'functionCall', 'value': "%s.%s" % (varType, ident2)}, None,
                     [Node({'type': 'identifier', 'value': ident1}, None, [])] + argList)
             else:
@@ -301,6 +301,7 @@ class JackParser:
         print('Parsing RHS')
         nextToken = self._popToken()
         if nextToken == ('keyword', 'new'):
+            print('Parsing constructor')
             classIdentifier = self.parseTokenValue()
             self._pushToken()
             ctorCall = self.parseExpression()
@@ -405,9 +406,12 @@ if __name__ == "__main__":
             var int fs, h;
             var int g;
             var String b;
+            var Troll c;
             let fs = 123 + 123 + (123 - 123 * 123);
             let g = (fs + 3) / 91;
             let b = "blah" + "blah";
+            let fs = c.trollmethod(123, 123, 123*123*c.trollmethod(10110));
+            let fs = new Troll(123, trolll());
         }
     }""")
     jp = JackParser(tokenizer)
