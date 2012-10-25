@@ -122,7 +122,7 @@ class JackParser:
         print('Exiting var dec')
         print(names)
         return names
-        
+
     def parseLoneVariable(self):
         print('Parsing lone variable')
         name = self.parseTokenValue()
@@ -150,12 +150,12 @@ class JackParser:
         else:
             raise JackParserError('Invalid scope')
         return name
-        
+
     def parseVariable(self):
         print('Parsing variable')
         self.parseTokenValue()
         return self.parseLoneVariable()
-        
+
     def parseVariableList(self):
         print('Parsing variable list')
         return [self.parseLoneVariable()] + list(self.parseMany(('symbol', ','), self.parseVariable))
@@ -220,7 +220,7 @@ class JackParser:
     def parseVariableDeclarations(self):
         print('Parsing vardec')
         return list(self.parseMany(('keyword', 'var'), self.parseVariableDeclaration))
-        
+
     def parseStatements(self):
         print('Parsing statements')
         children = list(self.parseMany([('keyword', 'do'),
@@ -271,14 +271,22 @@ class JackParser:
             raise JackParserError('Expected ( or . next.')
 
     def parseArgumentList(self):
-        pass
+        nextToken = self.parseTokenValue()
+        self._pushToken()
+        if nextToken == ')':
+            return []
+        exps = [self.parseExpression()]
+        exps += self.parseMany(('symbol', ','), self.parseExpression)
+        return exps
 
     def parseLetStatement(self):
+        print('Parsing let statement')
         w, leftExpression, w, rightExpression, w = self.parse([('keyword', 'let'), self.parseLHS, ('symbol', '='), self.parseRHS, ('symbol', ';')])
-        return Node({'type': 'let', 'array': leftExpression.properties['value'] == '['}, 
+        return Node({'type': 'let', 'array': leftExpression.properties['value'] == '['},
             None, [leftExpression, rightExpression])
 
     def parseLHS(self):
+        print('Parsing LHS')
         identifier, bracketOperator = self.parse([self.parseTokenValue, self.parseTokenValue])
         if bracketOperator == '[':
             indexTree = self.parseExpression()
@@ -290,6 +298,7 @@ class JackParser:
             return Node({'type': 'identifier', 'value': identifier}, None, [])
 
     def parseRHS(self):
+        print('Parsing RHS')
         nextToken = self.parseTokenValue()
         if nextToken == ('keyword', 'new'):
             classIdentifier = self.parseTokenValue()
@@ -301,18 +310,48 @@ class JackParser:
             return self.parseExpression()
 
     def parseWhileStatement(self):
-        pass
+        print('Parsing while statement')
+        w, w, conditional, w, w, statementList, w = self.parse([('keyword', 'while'),
+            ('symbol', '('),
+            self.parseExpression,
+            ('symbol', ')'),
+            ('symbol', '{'),
+            self.parseStatements,
+            ('symbol', '}')])
+        statementList.properties['type'] = 'statementList'
+        conditional.properties['type'] = 'conditional'
+        return Node({'type': 'whileStatement'}, None, [conditional, statementList])
 
     def parseReturnStatement(self):
-        pass
+        print('Parsing return statement')
+        w, ret = self.parse([('keyword', 'return'), self.parseExpression])
+        return Node({'type': 'returnStatement'}, None, [ret])
 
     def parseIfStatement(self):
-        pass
+        print('Parsing if statement')
+        w, w, conditional, w, w, statementList, w = self.parse([('keyword', 'if'),
+            ('symbol', '('),
+            self.parseExpression,
+            ('symbol', ')'),
+            ('symbol', '{'),
+            self.parseStatements,
+            ('symbol', '}')])
+        conditional.properties['type'] = 'conditional'
+        statementList.properties['type'] = 'statementList'
+        nextToken = self._popToken()
+        self._pushToken()
+        if nextToken == ('keyword', 'else'):
+            elseStatementList = self.parseElseStatement()
+            elseStatementList.properties['type'] = 'statementList'
+            return Node({'type': 'ifStatementWithElse'}, None, [conditional, statementList, elseStatementList])
+        return Node({'type': 'ifStatement'}, None, [conditional, statementList])
 
-    def parseExpression(self):
-        pass
+    def parseElseStatement(self):
+        print('Parsing else statement')
+        w, w, statementList, w = self.parse([('keyword', 'else'), ('symbol', '{'), self.parseStatements, ('symbol', '}')])
+        return statementList
 
-    def parseExpressionList(self):
+    def parseExpression(self): #stops at ',' , ')' , ']', ';'
         pass
 
     def parseTerm(self):
@@ -324,7 +363,7 @@ if __name__ == "__main__":
         field int test, test3, test4, test5;
         field int test2;
         static int test421;
-        
+
         method int testanotherthing(int a, String b) {
             var int fs;
             let fs = 123;
