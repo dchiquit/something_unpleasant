@@ -27,6 +27,7 @@ class JackParser:
         self.localVars = {} #function => name => type, index
         self.argumentCounts = {} #function => argumentCount
         self.arguments = {} #function => name => type, index
+        self.resolve = {}
 
     def _popToken(self):
         ret = self.tokenizer.popToken()
@@ -79,13 +80,15 @@ class JackParser:
 
     def parseClass(self):
         print('Parsing class!')
+        self.resolve = {}
+        self.resolve['$global'] = {}
         w, className, w = self.parse([('keyword', 'class'),
             self.parseTokenValue,
             ('symbol', '{')])
         self.className = className
         classBody, w = self.parse([self.parseClassBody,
             ('symbol', '}')])
-        self.globalClassInfo[self.className] = { 'addresses': self.addresses.copy() }
+        self.globalClassInfo[self.className] = self.addresses.copy()
         self.addresses = {'$global': {}} #{'$global' => {}, 'function' => {'exampleVar' => 'static 0'}}
         self.staticCount = 0
         self.statics = {}
@@ -128,18 +131,21 @@ class JackParser:
             self.statics[name]['type'] = self.varType
             self.statics[name]['index'] = self.staticCount
             self.addresses['$global'][name] = "static %s" % (self.statics[name]['index'])
+            self.resolve['$global'][name] = self.varType
             self.staticCount += 1
         elif self.scope == 'field':
             self.instanceVars[name] = {}
             self.instanceVars[name]['type'] = self.varType
             self.instanceVars[name]['index'] = self.instanceVarCount
             self.addresses['$global'][name] = "this %s" % (self.instanceVars[name]['index'])
+            self.resolve['$global'][name] = self.varType
             self.instanceVarCount += 1
         elif self.scope == 'var':#fill this in
             self.localVars[self.functionName][name] = {}
             self.localVars[self.functionName][name]['type'] = self.varType
             self.localVars[self.functionName][name]['index'] = self.localVarCounts[self.functionName]
             self.addresses[self.functionName][name] = "local %s" % (self.localVars[self.functionName][name]['index'])
+            self.resolve[self.functionName][name] = self.varType
             self.localVarCounts[self.functionName] += 1
         else:
             raise JackParserError('Invalid scope')
@@ -165,6 +171,7 @@ class JackParser:
         self.arguments[name] = {}
         self.argumentCounts[name] = 0
         self.localVarCounts[name] = 0
+        self.resolve[name] = {}
         w, parameterList, w, body = self.parse([('symbol', '('),
             self.parseParameterList,
             ('symbol', ')'),
@@ -201,6 +208,7 @@ class JackParser:
         self.arguments[self.functionName][argId]['type'] = argType
         self.arguments[self.functionName][argId]['index'] = self.argumentCounts[self.functionName]
         self.addresses[self.functionName][argId] = "argument %s" % (self.argumentCounts[self.functionName])
+        self.resolve[self.functionName][argId] = argType
         self.argumentCounts[self.functionName] += 1
         return argId
 
@@ -225,26 +233,73 @@ class JackParser:
 
     def parseStatement(self):
         nextToken = self._popToken()
+        self._pushToken()
         if nextToken == ('keyword', 'let'):
             return self.parseLetStatement()
-        if nextToken == ('keyword', 'aofioeafimofmoim'):
-            pass
-        
+        elif nextToken == ('keyword', 'do'):
+            return self.parseDoStatement()
+        elif nextToken == ('keyword', 'if'):
+            return self.parseIfStatement()
+        elif nextToken == ('keyword', 'return'):
+            return self.parseReturnStatement()
+        elif nextToken == ('keyword', 'while'):
+            return self.parseWhileStatement()
+
     def parseDoStatement(self):
+        w, ret, w = self.parse([('keyword', 'do'), self.parseSubroutineCall, ('symbol', ';')])
+        return ret
+
+    def parseSubroutineCall(self):
+        ident1, next = self.parseTokenValue(), self.parseTokenValue()
+        if next == '(':
+            argList, w = self.parse([self.parseArgumentList, ('symbol', ')')])
+            return Node({'type': 'do', 'value': "%s.%s" % (self.className, ident1)}, None,
+                [Node({'type': 'this'}, None, [])] + argList)
+        elif next == '.':
+            ident2, w, argList, w = self.parse([self.parseTokenValue, ('symbol', '('), self.parseArgumentList, ('symbol', ')')])
+            if ident1 in resolve[self.functionName].keys():
+                varType = resolve[self.functionName][ident1]
+                return Node({'type': 'functionCall', 'value': "%s.%s" % (varType, ident2)}, None,
+                    [Node({'type': 'identifier', 'value': ident1}, None, [])] + argList)
+            elif ident1 in resolve['$global'].keys():
+                varType = resolve['$global'][ident1]
+                return Node({'type': 'functionCall', 'value': "%s.%s" % (varType, ident2)}, None,
+                    [Node({'type': 'identifier', 'value': ident1}, None, [])] + argList)
+            else:
+                return Node({'type': 'functionCall', 'value': "%s.%s" % (ident1, ident2)}, None, argList)
+        else:
+            raise JackParserError('Expected ( or . next.')
+
+    def parseArgumentList(self):
         pass
 
     def parseLetStatement(self):
-        leftExpression, w, rightExpression, ww = self.parse([self.parseLHS, ('symbol', '='), self.parseRHS, ('symbol', ';')])
-        print "afaffdsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa    \t\t",leftExpression, w, rightExpression
-        return Node(properties={'type': 'if', 'array': leftExpression.properties['value'] == '['}, 
+        w, leftExpression, w, rightExpression, w = self.parse([('keyword', 'let'), self.parseLHS, ('symbol', '='), self.parseRHS, ('symbol', ';')])
+        return Node({'type': 'let', 'array': leftExpression.properties['value'] == '['}, 
             None, [leftExpression, rightExpression])
-        
+
     def parseLHS(self):
-        return self._popToken()
-    
+        identifier, bracketOperator = self.parse([self.parseTokenValue, self.parseTokenValue])
+        if bracketOperator == '[':
+            indexTree = self.parseExpression()
+            self.parse(('symbol', ']'))
+            return Node({'type': 'operator', 'value': '['}, None,
+                [Node({'type': 'identifier', 'value': identifier}, None, []), indexTree])
+        else:
+            self._pushToken()
+            return Node({'type': 'identifier', 'value': identifier}, None, [])
+
     def parseRHS(self):
-        return self._popToken()
-        
+        nextToken = self.parseTokenValue()
+        if nextToken == ('keyword', 'new'):
+            classIdentifier = self.parseTokenValue()
+            self._pushToken()
+            ctorCall = self.parseExpression()
+            ctorCall.properties['value'] = ("%s.new" % (classIdentifier))
+        else:
+            self._pushToken()
+            return self.parseExpression()
+
     def parseWhileStatement(self):
         pass
 
