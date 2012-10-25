@@ -247,13 +247,13 @@ class JackParser:
 
     def parseDoStatement(self):
         w, ret, w = self.parse([('keyword', 'do'), self.parseSubroutineCall, ('symbol', ';')])
-        return ret
+        return Node({'type': 'doStatement'}, None, [ret])
 
     def parseSubroutineCall(self):
         ident1, next = self.parseTokenValue(), self.parseTokenValue()
         if next == '(':
             argList, w = self.parse([self.parseArgumentList, ('symbol', ')')])
-            return Node({'type': 'do', 'value': "%s.%s" % (self.className, ident1)}, None,
+            return Node({'type': 'functionCall', 'value': "%s.%s" % (self.className, ident1)}, None,
                 [Node({'type': 'this'}, None, [])] + argList)
         elif next == '.':
             ident2, w, argList, w = self.parse([self.parseTokenValue, ('symbol', '('), self.parseArgumentList, ('symbol', ')')])
@@ -305,6 +305,7 @@ class JackParser:
             classIdentifier = self.parseTokenValue()
             self._pushToken()
             ctorCall = self.parseExpression()
+            ctorCall.children = ctorCall.children[1:]
             ctorCall.properties['value'] = ("%s.new" % (classIdentifier))
             return ctorCall
         else:
