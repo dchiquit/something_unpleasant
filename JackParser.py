@@ -276,7 +276,7 @@ class JackParser:
         if nextToken == ')':
             return []
         exps = [self.parseExpression()]
-        exps += self.parseMany(('symbol', ','), self.parseExpression)
+        exps += list(self.parseMany(('symbol', ','), self.parseExpression))
         return exps
 
     def parseLetStatement(self):
@@ -299,7 +299,7 @@ class JackParser:
 
     def parseRHS(self):
         print('Parsing RHS')
-        nextToken = self.parseTokenValue()
+        nextToken = self._popToken()
         if nextToken == ('keyword', 'new'):
             classIdentifier = self.parseTokenValue()
             self._pushToken()
@@ -352,10 +352,40 @@ class JackParser:
         return statementList
 
     def parseExpression(self): #stops at ',' , ')' , ']', ';'
-        pass
+        tree = self.parseLoneTerm()
+        for term in self.parseMany(operators, self.parseTerm):
+            op, opand = term
+            tree = Node({'type': 'binaryOperator', 'value': op}, None, [tree, opand])
+        return tree
 
     def parseTerm(self):
-        pass
+        op = self.parseTokenValue()
+        return (op, self.parseLoneTerm())
+
+    def parseLoneTerm(self):
+        tokenType, tokenValue = self._popToken()
+        if tokenType == 'integerConstant' || tokenType == 'stringConstant' || tokenType == 'keywordConstant':
+            return Node({'type': tokenType, 'value': tokenValue}, None, [])
+        elif tokenType == 'identifier':
+            ahead = self.parseTokenValue()
+            self._pushToken()
+            if ahead == '.':
+                self._pushToken()
+                return self.parseSubroutineCall()
+            elif ahead == '[':
+                inside = self.parseExpression()
+                w = self.parse(('symbol', ']'))
+                return Node({'type': 'operator', 'value': '['}, None,
+                    [Node({'type': 'identifier', 'value': tokenValue}, None, []), inside])
+            elif ahead == '(':
+                w, expTree, w = self.parse([('symbol', '('), self.parseExpression, ('symbol', ')')])
+                return expTree
+            else:
+                return Node({'type': 'identifier', 'value': tokenValue}, None, [])
+        elif tokenType == 'symbol':
+            return Node({'type': 'unaryOperator', 'value': tokenValue}, None, [self.parseLoneTerm()])
+        else:
+            raise JackParserError('Invalid term start')
 
 if __name__ == "__main__":
     tokenizer = Tokenizer("""
@@ -366,7 +396,11 @@ if __name__ == "__main__":
 
         method int testanotherthing(int a, String b) {
             var int fs;
-            let fs = 123;
+            let fs = 123 + 123 + (123 - 123 * 123);
+            var int g;
+            let g = (fs + 3) / 91;
+            var string h;
+            let h = "blah" + "blah";
         }
     }""")
     jp = JackParser(tokenizer)

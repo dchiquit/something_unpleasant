@@ -1,6 +1,6 @@
 
 
-class JackExpressionTree:
+class Node:
 
     #properties children, parent
     # properties: {}
