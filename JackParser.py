@@ -276,7 +276,7 @@ class JackParser:
         if nextToken == ')':
             return []
         exps = [self.parseExpression()]
-        exps += list(self.parseMany(('symbol', ','), self.parseExpression))
+        exps += list(self.parseMany(('symbol', ','), self.parseExpressionWithComma))
         return exps
 
     def parseLetStatement(self):
@@ -306,6 +306,7 @@ class JackParser:
             self._pushToken()
             ctorCall = self.parseExpression()
             ctorCall.properties['value'] = ("%s.new" % (classIdentifier))
+            return ctorCall
         else:
             self._pushToken()
             return self.parseExpression()
@@ -351,6 +352,10 @@ class JackParser:
         print('Parsing else statement')
         w, w, statementList, w = self.parse([('keyword', 'else'), ('symbol', '{'), self.parseStatements, ('symbol', '}')])
         return statementList
+
+    def parseExpressionWithComma(self):
+        w, exp = self.parse([('symbol', ','), self.parseExpression])
+        return exp
 
     def parseExpression(self): #stops at ',' , ')' , ']', ';'
         print('Parsing expression')
