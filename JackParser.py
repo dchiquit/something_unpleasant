@@ -229,7 +229,8 @@ class JackParser:
             ('keyword', 'return'),
             ('keyword', 'if')],
             self.parseStatement))
-        return Node(None, None, children)
+        print('Done parsing statement block')
+        return Node({}, None, children)
 
     def parseStatement(self):
         nextToken = self._popToken()
@@ -327,7 +328,7 @@ class JackParser:
 
     def parseReturnStatement(self):
         print('Parsing return statement')
-        w, ret = self.parse([('keyword', 'return'), self.parseExpression])
+        w, ret, w = self.parse([('keyword', 'return'), self.parseExpression, ('symbol', ';')])
         return Node({'type': 'returnStatement'}, None, [ret])
 
     def parseIfStatement(self):
@@ -418,6 +419,15 @@ if __name__ == "__main__":
             let b = "blah" + "blah";
             let fs = c.trollmethod(123, 123, 123*123*c.trollmethod(10110));
             let fs = new Troll(123, trolll());
+            if (fs) {
+                do Troll.trollmethod(123, 123, 123);
+                let fs = 0;
+            }
+            while (fs) {
+                do Troll.trollmethod(123, 123, 456);
+                return fs;
+            }
+            return fs;
         }
     }""")
     jp = JackParser(tokenizer)
