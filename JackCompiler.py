@@ -14,14 +14,6 @@ class translator:
                 self.labelCount = 0
                 self.out = ""
                 self.classAddresses = _classAddresses
-                   
-        def translateRoot(self, node):
-                print node
-                print "starts",node.children
-                for k in node.children:
-                        print "first CHILD"
-                        print(self.translate(k))
-                print "done"
         
         def translate(self, node):
                 print(node.properties, node.children)
@@ -103,8 +95,13 @@ class translator:
                 elif node.properties["type"] == 'expression':
                         pass
                 elif node.properties["type"] == 'root':
-                        pass
                         #root: no value, children are class nodes
+                        print node
+                        print "starts",node.children
+                        for k in node.children:
+                                print "first CHILD"
+                                print(self.translate(k))
+                        print "done"
                 elif node.properties["type"] == 'statementList':
                         pass
                         #no value, children are lines of code
@@ -127,5 +124,5 @@ if __name__=="__main__":
         parsed = jp.parseAll()
         trans  = translator(parsed[1])
         print("\n\n\nSTARTING ANEW\n\n\n")
-        print(trans.translateRoot(parsed[0]))
+        print(trans.translate(parsed[0]))
         #translateRoot(parsed[0], parsed[1])
