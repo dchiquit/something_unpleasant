@@ -35,7 +35,6 @@ class JackParser:
         return ret
 
     def _pushToken(self):
-        print("Pushing token")
         self.tokenizer.pushToken()
 
     def _canPop(self):
@@ -71,7 +70,6 @@ class JackParser:
         self._pushToken()
 
     def parseAll(self):
-        print('Parsing all!')
         children = list(self.parseMany(('keyword', 'class'), self.parseClass))
         print('Global info:')
         print(self.globalClassInfo)
