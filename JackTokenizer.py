@@ -17,7 +17,7 @@ class Parser:
 
 """
 
-import JackConstants, JackErrors
+import re, JackConstants, JackErrors
 
 class Tokenizer:
 
@@ -29,7 +29,13 @@ class Tokenizer:
         print(self.file)
 
     def _preprocess(self):
-        pass
+        self.file = re.sub("\\/\\*(?:.|\n|\r\n)*\\*\\/","",self.file)
+        print "~~~"
+        print self.file
+        print "~~~"
+        self.file = re.sub("\\/\\/.*?(?:\n|$)","\n",self.file)
+        print self.file
+        print "~~~"
 
     def _matchesToken(self, token, strang):
         return len(token) >= len(strang) and token[:len(strang)] == strang
@@ -98,14 +104,18 @@ class Tokenizer:
 
 if __name__ == "__main__":
     tokenizer = Tokenizer("""
+        /*
+        YOAGASd
+        */
         class   Yo  {
+        // is a comment
                 method Fraction foo (int y) {
                         let temp = (xxx+12)*-63;
                 }
         }
-""")
-    while tokenizer.canPop():
-        print(tokenizer.popToken())
+// is a comment as well""")
+    #while tokenizer.canPop():
+    #    print(tokenizer.popToken())
 
 
 
