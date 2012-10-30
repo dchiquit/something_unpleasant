@@ -1,13 +1,13 @@
 
 
-class JackExpressionTree:
+class Node:
 
     #properties children, parent
     # properties: {}
     
     # self.properties = {}
-    # self.parent = JackExpressionTree
-    # self.children = [JackExpressionTree]
+    # self.parent = Node
+    # self.children = [Node]
 
     def __init__(self, properties, parent, children = []):
         self.properties, self.parent, self.children = properties, parent, children
@@ -26,4 +26,4 @@ class JackExpressionTree:
 
         
 if __name__ == "__main__":
-    print(dir(JackExpressionTree))
+    print(dir(Node))
