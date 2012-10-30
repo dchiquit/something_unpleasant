@@ -325,6 +325,11 @@ class JackParser:
 
     def parseReturnStatement(self):
         print('Parsing return statement')
+        if self._popToken()==('keyword', 'return') and self._popToken()==('symbol', ';'):
+            return Node({'type': 'returnStatement'}, None, [])
+        else:
+            self._pushToken()
+            self._pushToken()
         w, ret, w = self.parse([('keyword', 'return'), self.parseExpression, ('symbol', ';')])
         return Node({'type': 'returnStatement'}, None, [ret])
 
@@ -397,7 +402,7 @@ class JackParser:
         elif tokenType == 'symbol':
             return Node({'type': 'unaryOperator', 'value': tokenValue}, None, [self.parseLoneTerm()])
         else:
-            raise JackParserError('Invalid term start')
+            raise JackParserError('Invalid term start: '+tokenType+" "+tokenValue)
 
 if __name__ == "__main__":
     tokenizer = Tokenizer("""
