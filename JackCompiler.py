@@ -8,25 +8,24 @@ from JackExpressionTree import *
 
 from JackErrors import *
 
+import sys
+
 
 conditionals = {"=":"eq", "<": "lt", ">": "gt", "&": "and"}
 
 
 class translator:
-        def __init__(self, _classAddresses):
+        def __init__(self):
                 self.labelCount = 0
                 self.out = ""
                 self.currentClass = ""
                 self.currentFunction = ""
-                self.classAddresses = _classAddresses
+                self.classAddresses = {}
         def output(self):
-                print "Here is out"
-                print "<"
-                print str(self.out)
-                print ">"
+                return self.out
+        def setAddresses(self, ca):
+                self.classAddresses = ca
         def translate(self, node):
-                print  "\n\nTRANSLATING\n\n"
-                print (str(node.properties) + "\t" + str(node.children) +"\n")
                 if node.properties["type"] == 'ifStatementWithElse':
                         #no value, first child is expression (must have), second child is statementList for expression true, third child is statementList for else
                         self.translate(node.children[0])
@@ -51,10 +50,7 @@ class translator:
                 elif node.properties["type"] == 'let':
                         #no value, two children, first is variable identifier, second is expression
                         #assuming type is integer
-                        print node.children[1]
                         self.translate(node.children[1])
-                        print "Here is addresses\n"
-                        print self.classAddresses
                         identifier = node.children[0].properties['value']
                         if (identifier in self.classAddresses[self.currentClass][self.currentFunction]):
                                 self.out += ("pop " + str(self.classAddresses[self.currentClass][self.currentFunction][node.children[0].properties["value"]] + "\n"))
@@ -63,7 +59,7 @@ class translator:
                 elif node.properties["type"] == "doStatement":
                         for child in node.children:
                                 self.translate(child)
-                        print node.children[0]
+                        self.out += "pop temp 0\n"
                 elif node.properties["type"] == 'identifier':
                         thingy = self.classAddresses[self.currentClass]
                         if node.properties['value'] in thingy[self.currentFunction]:
@@ -83,13 +79,14 @@ class translator:
                         self.out += ("label L" + str(tempLabel + 1) + "\n")
                 elif node.properties["type"] == 'returnStatement':
                         #no value, first child is expression
-                        print "LOLOLOL RETURNINGZ"
                         if len(node.children) != 0:
                                 identifier = node.children[0].properties['value']
                                 if (identifier in self.classAddresses[self.currentClass][self.currentFunction]):
                                         self.out += ("push " + str(self.classAddresses[self.currentClass][self.currentFunction][node.children[0].properties["value"]] + "\n"))
                                 elif (identifier in self.classAddresses[self.currentClass]['$global']):
                                         self.out += ("push " + str(self.classAddresses[self.currentClass]['$global'][node.children[0].properties["value"]] + "\n"))
+                        else:
+                            self.out += "push constant 0\n"
                         self.out += "return\n"
                 elif node.properties["type"] == 'class':
                         #This does not generate code, children of node is code of class
@@ -98,43 +95,48 @@ class translator:
                                 self.translate(k)
                 elif node.properties["type"] == 'functionCall':
                         #value of function name, children include the arguments passed to the functionCall
-                        print "functioning"
-                        print node.properties
                         for k in node.children:
-                                print k
-                                print "translating"
                                 self.translate(k)
-                                print "done translating"
                         self.out += ("call " + node.properties["value"] + " " + str(len(node.children)) + "\n")
-                        print "done functioning"
                 elif node.properties["type"] == 'subroutine':
                         #value of function name, children is statementList of code
                         self.currentFunction = node.properties['name']
                         self.out += ("function " + self.currentClass+"."+node.properties["name"] + " " + str(node.properties["localVarCount"]) + "\n")
-                        print node.children[0]
+                        if node.properties["functionType"] == "constructor":
+                                self.out += "push constant "+str(len(self.classAddresses[self.currentClass]["$global"]))+"\n"
+                                self.out += "call Memory.alloc 1\n"
+                                self.out += "pop pointer 0\n"
+                                #for glob in self.classAddresses[self.currentClass]["$global"]:
+                                #    self.out += ""
+                        elif node.properties["functionType"] == "method":
+                                self.out += "push argument 0\npop pointer 0\n"
                         for k in node.children:
                                 self.translate(k)
+                        if node.properties["functionType"] == "constructor":
+                                self.out = self.out[:-7] + "push pointer 0\nreturn\n"
                 elif node.properties["type"] == 'binaryOperator':
+                        self.translate(node.children[0])
+                        self.translate(node.children[1])
                         #value of whatever operator it is. Children are operand expressions
-                         if node.properties["value"] == '+':
-                                 self.out += "add\n"
-                         elif node.properties["value"] == '-':
-                                 self.out += "sub\n"
-                         elif node.properties["value"] == '*':
-                                 self.out += "call Math.multiply 2\n"
-                         elif node.properties["value"] == '/':
-                                 self.out += "call Math.divide 2\n"
-                         elif node.properties["value"] == '&':
-                                 self.out += "and\n"
-                         elif node.properties["value"] == '|':
-                                 self.out += "or\n"
-                         elif node.properties["value"] == '<':
-                                 self.out += "lt\n"
-                         elif node.properties["value"] == '>':
-                                 self.out += "gt\n"
-                         elif node.properties["value"] == '=':
-                                 self.out += "eq\n"
-                                #when used for assignment, handled by letStatement node
+                        if node.properties["value"] == '+':
+                                self.out += "add\n"
+                        elif node.properties["value"] == '-':
+                                self.out += "sub\n"
+                        elif node.properties["value"] == '*':
+                                self.out += "call Math.multiply 2\n"
+                        elif node.properties["value"] == '/':
+                                self.out += "call Math.divide 2\n"
+                        elif node.properties["value"] == '&':
+                                self.out += "and\n"
+                        elif node.properties["value"] == '|':
+                                self.out += "or\n"
+                        elif node.properties["value"] == '<':
+                                self.out += "lt\n"
+                        elif node.properties["value"] == '>':
+                                self.out += "gt\n"
+                        elif node.properties["value"] == '=':
+                                self.out += "eq\n"
+                               #when used for assignment, handled by letStatement node
                 elif node.properties["type"] == "unaryOperator":
                         #value of whatever operator it is. Child is operand expression
                         if node.properties["value"] == '~':
@@ -171,12 +173,9 @@ class translator:
                         if node.properties['value'] == 'this':
                                 self.out += "push pointer 0\n"
                 elif node.properties["type"] == 'conditional':
-                        print node.properties
-                        print "conditionaling"
                         self.translate(node.children[0])
                         self.translate(node.children[1])
                         self.out += conditionals[node.properties["value"]]+"\n"
-                        pass
                 elif node.properties["type"] == 'root':
                         #root: no value, children are class nodes
                         for k in node.children:
@@ -193,130 +192,26 @@ class translator:
 
 
 if __name__=="__main__":
-        tokenizer = Tokenizer("""
-        // This file is part of the materials accompanying the book 
-// "The Elements of Computing Systems" by Nisan and Schocken, 
-// MIT Press. Book site: www.idc.ac.il/tecs
-// File name: projects/09/Square/Square.jack
-
-/**
- * The Square class implements a graphic square. A graphic square 
- * has a location on the screen and a size. It also has methods 
- * for drawing, erasing, moving on the screen, and changing its size.
- */
-class Square {
-
-    // Location on the screen
-    field int x, y;
-
-    // The size of the square
-    field int size;
-
-    /** Constructs a new square with a given location and size. */
-    constructor Square new(int Ax, int Ay, int Asize) {
-        let x = Ax;
-        let y = Ay;
-        let size = Asize;
-
-        do draw();
-
-        return this;
-    }
-
-    /** Deallocates the object's memory. */
-    method void dispose() {
-        do Memory.deAlloc(this);
-        return;
-    }
-
-    /** Draws the square on the screen. */
-    method void draw() {
-        do Screen.setColor(true);
-        do Screen.drawRectangle(x, y, x + size, y + size);
-        return;
-    }
-
-    /** Erases the square from the screen. */
-    method void erase() {
-        do Screen.setColor(false);
-        do Screen.drawRectangle(x, y, x + size, y + size);
-        return;
-    }
-
-    /** Increments the size by 2. */
-    method void incSize() {
-        if (((y + size) < 254) & ((x + size) < 510)) {
-            do erase();
-            let size = size + 2;
-            do draw();
-        }
-        return;
-    }
-
-    /** Decrements the size by 2. */
-    method void decSize() {
-        if (size > 2) {
-            do erase();
-            let size = size - 2;
-            do draw();
-        }
-        return;
-	}
-
-    /** Moves up by 2. */
-    method void moveUp() {
-        if (y > 1) {
-            do Screen.setColor(false);
-            do Screen.drawRectangle(x, (y + size) - 1, x + size, y + size);
-            let y = y - 2;
-            do Screen.setColor(true);
-            do Screen.drawRectangle(x, y, x + size, y + 1);
-        }
-        return;
-    }
-
-    /** Moves down by 2. */
-    method void moveDown() {
-        if ((y + size) < 254) {
-            do Screen.setColor(false);
-            do Screen.drawRectangle(x, y, x + size, y + 1);
-            let y = y + 2;
-            do Screen.setColor(true);
-            do Screen.drawRectangle(x, (y + size) - 1, x + size, y + size);
-        }
-        return;
-    }
-
-    /** Moves left by 2. */
-    method void moveLeft() {
-        if (x > 1) {
-            do Screen.setColor(false);
-            do Screen.drawRectangle((x + size) - 1, y, x + size, y + size);
-            let x = x - 2;
-            do Screen.setColor(true);
-            do Screen.drawRectangle(x, y, x + 1, y + size);
-        }
-        return;
-    }
-
-    /** Moves right by 2. */
-    method void moveRight() {
-        if ((x + size) < 510) {
-            do Screen.setColor(false);
-            do Screen.drawRectangle(x, y, x + 1, y + size);
-            let x = x + 2;
-            do Screen.setColor(true);
-            do Screen.drawRectangle((x + size) - 1, y, x + size, y + size);
-        }
-        return;
-    }
-}
-""")
-        jp = JackParser(tokenizer)
-        #print(jp.parseAll()[0])
-        parsed = jp.parseAll()
-        trans  = translator(parsed[1])
+        trans  = translator()
+        
+        for arg in sys.argv[1:-1]:
+            squareFile = open(arg,"r")
+            tokenizer = Tokenizer(squareFile.read())
+            squareFile.close()
+            jp = JackParser(tokenizer)
+            #print(jp.parseAll()[0])
+            parsed = jp.parseAll()
+            trans.setAddresses(parsed[1])
+            trans.translate(parsed[0])
+        
+            trans.out += "\n\n\n\n"
+        
+        
         print("\n\n\nSTARTING ANEW\n\n\n")
-        trans.translate(parsed[0])
-        trans.output()
+        
+        fileout = open(sys.argv[-1],"w")
+        fileout.write(trans.output())
+        fileout.close()
+        
+        
         #translateRoot(parsed[0], parsed[1])

@@ -166,8 +166,12 @@ class JackParser:
         self.functionName = name
         self.addresses[name] = {}
         self.localVars[name] = {}
-        self.arguments[name] = {}
-        self.argumentCounts[name] = 0
+        if methodType == "method":
+                self.arguments[name] = {}
+                self.argumentCounts[name] = 1
+        else:
+                self.arguments[name] = {}
+                self.argumentCounts[name] = 0
         self.localVarCounts[name] = 0
         self.resolve[name] = {}
         w, parameterList, w, body = self.parse([('symbol', '('),
@@ -252,7 +256,8 @@ class JackParser:
         ident1, next = self.parseTokenValue(), self.parseTokenValue()
         if next == '(':
             argList, w = self.parse([self.parseArgumentList, ('symbol', ')')])
-            return Node({'type': 'functionCall', 'value': "%s.%s" % (self.className, ident1)}, None, argList)
+            return Node({'type': 'functionCall', 'value': "%s.%s" % (self.className, ident1)}, None, 
+                [Node({"type":"keywordConstant","value":"this"},None,[])] + argList)
         elif next == '.':
             ident2, w, argList, w = self.parse([self.parseTokenValue, ('symbol', '('), self.parseArgumentList, ('symbol', ')')])
             if ident1 in self.resolve[self.functionName].keys():
