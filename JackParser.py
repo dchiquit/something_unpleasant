@@ -177,7 +177,7 @@ class JackParser:
         print('Exiting subroutine header')
         print(parameterList)
         return Node({'type': 'subroutine', 
-            'name': "%s.%s" % (self.className, self.functionName),
+            'name': "%s" % (self.functionName),
             'localVarCount': self.localVarCounts[name],
             'returnType': returnType,
             'functionType': methodType},
@@ -252,8 +252,7 @@ class JackParser:
         ident1, next = self.parseTokenValue(), self.parseTokenValue()
         if next == '(':
             argList, w = self.parse([self.parseArgumentList, ('symbol', ')')])
-            return Node({'type': 'functionCall', 'value': "%s.%s" % (self.className, ident1)}, None,
-                [Node({'type': 'this'}, None, [])] + argList)
+            return Node({'type': 'functionCall', 'value': "%s.%s" % (self.className, ident1)}, None, argList)
         elif next == '.':
             ident2, w, argList, w = self.parse([self.parseTokenValue, ('symbol', '('), self.parseArgumentList, ('symbol', ')')])
             if ident1 in self.resolve[self.functionName].keys():
