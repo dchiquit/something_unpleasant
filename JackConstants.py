@@ -1,5 +1,7 @@
-keyword = ['class', 'constructor', 'function', 'method', 'field', 'static', 'var', 'int', 'char', 'boolean', 'void', 'true', 'false', 'null', 'this' , 'let', 'do', 'if', 'else', 'while', 'return']
-symbol = ['{' , '}' , '(' , ')' , '[' , ']' , '.' , ',' , ';' , '+' , '-' , '*' , '/' , '&' , ',' , '<' , '>' , '=' ,  '~' ]
+keyword = ['class', 'constructor', 'function', 'method', 'field', 'static', 'var', 'int', 'char', 'boolean', 'void', 'true', 'false', 'null', 'this' , 'let', 'do', 'if', 'else', 'while', 'return', 'new']
+symbol = ['{' , '}' , '(' , ')' , '[' , ']' , '.' , ',' , ';' , '+' , '-' , '*' , '/' , '&' , '<' , '>' , '=' ,  '~' ]
+operations = ['+', '-', '*', '/', '&', '<', '>', '=', '~']
+operators = [('symbol', op) for op in operations]
 
 termination_token = ("eof", None)
 
