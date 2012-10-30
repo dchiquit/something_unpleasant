@@ -14,11 +14,14 @@ class Node:
         #self.parent._addChild(self)
         for c in children:
             c.parent = self
+
+    def __str__(self):
+        return self.toString()
         
-    def __str__(self, tabs=""):
+    def toString(self, tabs=""):
         ret = tabs+str(self.properties)+"\n"
         for c in self.children:
-            ret += str(c)+tabs+"\t"
+            ret += c.toString(tabs + "\t")
         return ret
             
     def addChild(self, child):

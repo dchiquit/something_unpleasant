@@ -55,7 +55,7 @@ class JackParser:
                 nextToken = self._popToken()
                 captures += [nextToken]
                 if nextToken != parseObj:
-                    raise JackParserError('Syntax error')
+                    raise JackParserError("Syntax error while parsing %s" % (items))
         return tuple(captures)
 
     def parseMany(self, startToken, item):
@@ -122,7 +122,7 @@ class JackParser:
         print('Exiting var dec')
         print(names)
         return names
-        
+
     def parseLoneVariable(self):
         print('Parsing lone variable')
         name = self.parseTokenValue()
@@ -150,12 +150,12 @@ class JackParser:
         else:
             raise JackParserError('Invalid scope')
         return name
-        
+
     def parseVariable(self):
         print('Parsing variable')
         self.parseTokenValue()
         return self.parseLoneVariable()
-        
+
     def parseVariableList(self):
         print('Parsing variable list')
         return [self.parseLoneVariable()] + list(self.parseMany(('symbol', ','), self.parseVariable))
@@ -220,7 +220,7 @@ class JackParser:
     def parseVariableDeclarations(self):
         print('Parsing vardec')
         return list(self.parseMany(('keyword', 'var'), self.parseVariableDeclaration))
-        
+
     def parseStatements(self):
         print('Parsing statements')
         children = list(self.parseMany([('keyword', 'do'),
@@ -229,7 +229,8 @@ class JackParser:
             ('keyword', 'return'),
             ('keyword', 'if')],
             self.parseStatement))
-        return Node(None, None, children)
+        print('Done parsing statement block')
+        return Node({}, None, children)
 
     def parseStatement(self):
         nextToken = self._popToken()
@@ -247,22 +248,22 @@ class JackParser:
 
     def parseDoStatement(self):
         w, ret, w = self.parse([('keyword', 'do'), self.parseSubroutineCall, ('symbol', ';')])
-        return ret
+        return Node({'type': 'doStatement'}, None, [ret])
 
     def parseSubroutineCall(self):
         ident1, next = self.parseTokenValue(), self.parseTokenValue()
         if next == '(':
             argList, w = self.parse([self.parseArgumentList, ('symbol', ')')])
-            return Node({'type': 'do', 'value': "%s.%s" % (self.className, ident1)}, None,
+            return Node({'type': 'functionCall', 'value': "%s.%s" % (self.className, ident1)}, None,
                 [Node({'type': 'this'}, None, [])] + argList)
         elif next == '.':
             ident2, w, argList, w = self.parse([self.parseTokenValue, ('symbol', '('), self.parseArgumentList, ('symbol', ')')])
-            if ident1 in resolve[self.functionName].keys():
-                varType = resolve[self.functionName][ident1]
+            if ident1 in self.resolve[self.functionName].keys():
+                varType = self.resolve[self.functionName][ident1]
                 return Node({'type': 'functionCall', 'value': "%s.%s" % (varType, ident2)}, None,
                     [Node({'type': 'identifier', 'value': ident1}, None, [])] + argList)
-            elif ident1 in resolve['$global'].keys():
-                varType = resolve['$global'][ident1]
+            elif ident1 in self.resolve['$global'].keys():
+                varType = self.resolve['$global'][ident1]
                 return Node({'type': 'functionCall', 'value': "%s.%s" % (varType, ident2)}, None,
                     [Node({'type': 'identifier', 'value': ident1}, None, [])] + argList)
             else:
@@ -271,14 +272,22 @@ class JackParser:
             raise JackParserError('Expected ( or . next.')
 
     def parseArgumentList(self):
-        pass
+        nextToken = self.parseTokenValue()
+        self._pushToken()
+        if nextToken == ')':
+            return []
+        exps = [self.parseExpression()]
+        exps += list(self.parseMany(('symbol', ','), self.parseExpressionWithComma))
+        return exps
 
     def parseLetStatement(self):
+        print('Parsing let statement')
         w, leftExpression, w, rightExpression, w = self.parse([('keyword', 'let'), self.parseLHS, ('symbol', '='), self.parseRHS, ('symbol', ';')])
-        return Node({'type': 'let', 'array': leftExpression.properties['value'] == '['}, 
+        return Node({'type': 'let', 'array': leftExpression.properties['value'] == '['},
             None, [leftExpression, rightExpression])
 
     def parseLHS(self):
+        print('Parsing LHS')
         identifier, bracketOperator = self.parse([self.parseTokenValue, self.parseTokenValue])
         if bracketOperator == '[':
             indexTree = self.parseExpression()
@@ -290,33 +299,108 @@ class JackParser:
             return Node({'type': 'identifier', 'value': identifier}, None, [])
 
     def parseRHS(self):
-        nextToken = self.parseTokenValue()
+        print('Parsing RHS')
+        nextToken = self._popToken()
         if nextToken == ('keyword', 'new'):
+            print('Parsing constructor')
             classIdentifier = self.parseTokenValue()
             self._pushToken()
             ctorCall = self.parseExpression()
+            ctorCall.children = ctorCall.children[1:]
             ctorCall.properties['value'] = ("%s.new" % (classIdentifier))
+            return ctorCall
         else:
             self._pushToken()
             return self.parseExpression()
 
     def parseWhileStatement(self):
-        pass
+        print('Parsing while statement')
+        w, w, conditional, w, w, statementList, w = self.parse([('keyword', 'while'),
+            ('symbol', '('),
+            self.parseExpression,
+            ('symbol', ')'),
+            ('symbol', '{'),
+            self.parseStatements,
+            ('symbol', '}')])
+        statementList.properties['type'] = 'statementList'
+        conditional.properties['type'] = 'conditional'
+        return Node({'type': 'whileStatement'}, None, [conditional, statementList])
 
     def parseReturnStatement(self):
-        pass
+        print('Parsing return statement')
+        w, ret, w = self.parse([('keyword', 'return'), self.parseExpression, ('symbol', ';')])
+        return Node({'type': 'returnStatement'}, None, [ret])
 
     def parseIfStatement(self):
-        pass
+        print('Parsing if statement')
+        w, w, conditional, w, w, statementList, w = self.parse([('keyword', 'if'),
+            ('symbol', '('),
+            self.parseExpression,
+            ('symbol', ')'),
+            ('symbol', '{'),
+            self.parseStatements,
+            ('symbol', '}')])
+        conditional.properties['type'] = 'conditional'
+        statementList.properties['type'] = 'statementList'
+        nextToken = self._popToken()
+        self._pushToken()
+        if nextToken == ('keyword', 'else'):
+            elseStatementList = self.parseElseStatement()
+            elseStatementList.properties['type'] = 'statementList'
+            return Node({'type': 'ifStatementWithElse'}, None, [conditional, statementList, elseStatementList])
+        return Node({'type': 'ifStatement'}, None, [conditional, statementList])
 
-    def parseExpression(self):
-        pass
+    def parseElseStatement(self):
+        print('Parsing else statement')
+        w, w, statementList, w = self.parse([('keyword', 'else'), ('symbol', '{'), self.parseStatements, ('symbol', '}')])
+        return statementList
 
-    def parseExpressionList(self):
-        pass
+    def parseExpressionWithComma(self):
+        w, exp = self.parse([('symbol', ','), self.parseExpression])
+        return exp
+
+    def parseExpression(self): #stops at ',' , ')' , ']', ';'
+        print('Parsing expression')
+        tree = self.parseLoneTerm()
+        for term in self.parseMany(operators, self.parseTerm):
+            op, opand = term
+            tree = Node({'type': 'binaryOperator', 'value': op}, None, [tree, opand])
+        return tree
 
     def parseTerm(self):
-        pass
+        print('Parsing term')
+        op, term = self.parse([self.parseTokenValue, self.parseLoneTerm])
+        print((op, term))
+        return (op, term)
+
+    def parseLoneTerm(self):
+        print('Parsing lone term')
+        tokenType, tokenValue = self._popToken()
+        if (tokenType == 'integerConstant') or (tokenType == 'stringConstant') or (tokenType == 'keywordConstant'):
+            return Node({'type': tokenType, 'value': tokenValue}, None, [])
+        elif tokenType == 'identifier':
+            ahead = self.parseTokenValue()
+            self._pushToken()
+            if ahead == '.':
+                self._pushToken()
+                return self.parseSubroutineCall()
+            elif ahead == '[':
+                inside = self.parseExpression()
+                w = self.parse(('symbol', ']'))
+                return Node({'type': 'operator', 'value': '['}, None,
+                    [Node({'type': 'identifier', 'value': tokenValue}, None, []), inside])
+            elif ahead == '(':
+                self._pushToken()
+                return self.parseSubroutineCall()
+            else:
+                return Node({'type': 'identifier', 'value': tokenValue}, None, [])
+        elif tokenType == 'symbol' and tokenValue == '(':
+            expTree, w = self.parse([self.parseExpression, ('symbol', ')')])
+            return expTree
+        elif tokenType == 'symbol':
+            return Node({'type': 'unaryOperator', 'value': tokenValue}, None, [self.parseLoneTerm()])
+        else:
+            raise JackParserError('Invalid term start')
 
 if __name__ == "__main__":
     tokenizer = Tokenizer("""
@@ -324,10 +408,26 @@ if __name__ == "__main__":
         field int test, test3, test4, test5;
         field int test2;
         static int test421;
-        
+
         method int testanotherthing(int a, String b) {
-            var int fs;
-            let fs = 123;
+            var int fs, h;
+            var int g;
+            var String b;
+            var Troll c;
+            let fs = 123 + 123 + (123 - 123 * 123);
+            let g = (fs + 3) / 91;
+            let b = "blah" + "blah";
+            let fs = c.trollmethod(123, 123, 123*123*c.trollmethod(10110));
+            let fs = new Troll(123, trolll());
+            if (fs) {
+                do Troll.trollmethod(123, 123, 123);
+                let fs = 0;
+            }
+            while (fs) {
+                do Troll.trollmethod(123, 123, 456);
+                return fs;
+            }
+            return fs;
         }
     }""")
     jp = JackParser(tokenizer)
