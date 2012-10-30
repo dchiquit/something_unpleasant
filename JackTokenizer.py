@@ -29,7 +29,7 @@ class Tokenizer:
         print(self.file)
 
     def _preprocess(self):
-        self.file = re.sub("\\/\\*(?:.|\n|\r\n)*\\*\\/","",self.file)
+        self.file = re.sub("\\/\\*(?:.|\n|\r\n)*?\\*\\/","",self.file)
         print "~~~"
         print self.file
         print "~~~"
@@ -66,6 +66,9 @@ class Tokenizer:
         for key in JackConstants.keyword:
             if self._matchesToken(token, key):
                 return self._pop("keyword", key)
+        for key in JackConstants.keywordConstants:
+            if self._matchesToken(token, key):
+                return self._pop("keywordConstant", key)
         for symbol in JackConstants.symbol:
             if self._matchesToken(token, symbol):
                 return self._pop("symbol", symbol)
